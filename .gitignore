@@ -1,0 +1,5 @@
+config/fal_key.php
+config/shotstack_key.php
+config/cloudinary_key.php
+controllers/tools/rag/config.php
+uploads/

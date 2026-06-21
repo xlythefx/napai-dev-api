@@ -1,0 +1,4 @@
+# Clean APK download URL — Android provisioning hits /napai-api/apk/vendotab
+# (no extension), index.php streams the active version.
+RewriteEngine On
+RewriteRule ^vendotab/?$ index.php [L]

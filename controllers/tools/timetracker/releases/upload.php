@@ -32,6 +32,7 @@ $version  = trim((string) ($_POST['version'] ?? ''));
 $platform = trim((string) ($_POST['platform'] ?? 'win'));
 $notes    = trim((string) ($_POST['notes'] ?? ''));
 $setCurrent = !empty($_POST['set_current']);
+$autoDownload = !empty($_POST['auto_download']);
 
 if ($version === '') {
     http_response_code(400);
@@ -103,17 +104,18 @@ try {
     }
 
     $isCurrent = $setCurrent ? 1 : 0;
+    $autoDl = $autoDownload ? 1 : 0;
     $uploadedBy = (int) $admin['id'];
     $stmt = mysqli_prepare(
         $conn,
         'INSERT INTO time_tracker_releases
-            (version, platform, filename, file_path, file_size, sha256, notes, is_current, uploaded_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            (version, platform, filename, file_path, file_size, sha256, notes, is_current, auto_download, uploaded_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     mysqli_stmt_bind_param(
-        $stmt, 'ssssisssi',
+        $stmt, 'ssssissiii',
         $version, $platform, $filename, $relFilePath, $fileSize,
-        $sha256, $notes, $isCurrent, $uploadedBy
+        $sha256, $notes, $isCurrent, $autoDl, $uploadedBy
     );
     if (!mysqli_stmt_execute($stmt)) {
         throw new Exception('DB insert failed: ' . mysqli_error($conn));
@@ -133,8 +135,9 @@ try {
             'file_size'   => (int) $fileSize,
             'sha256'      => $sha256,
             'notes'       => $notes,
-            'is_current'  => (bool) $isCurrent,
-            'uploaded_at' => date('Y-m-d H:i:s'),
+            'is_current'    => (bool) $isCurrent,
+            'auto_download' => (bool) $autoDl,
+            'uploaded_at'   => date('Y-m-d H:i:s'),
         ],
     ]);
 } catch (Throwable $e) {

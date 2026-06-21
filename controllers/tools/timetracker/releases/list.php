@@ -25,7 +25,7 @@ if ($platform) {
     $stmt = mysqli_prepare(
         $conn,
         "SELECT r.id, r.version, r.platform, r.filename, r.file_size, r.sha256, r.notes,
-                r.is_current, r.uploaded_at, r.download_count, d.email AS uploaded_by_email
+                r.is_current, r.auto_download, r.uploaded_at, r.download_count, d.email AS uploaded_by_email
            FROM time_tracker_releases r
       LEFT JOIN developers d ON d.id = r.uploaded_by
           WHERE r.platform = ?
@@ -36,7 +36,7 @@ if ($platform) {
     $stmt = mysqli_prepare(
         $conn,
         "SELECT r.id, r.version, r.platform, r.filename, r.file_size, r.sha256, r.notes,
-                r.is_current, r.uploaded_at, r.download_count, d.email AS uploaded_by_email
+                r.is_current, r.auto_download, r.uploaded_at, r.download_count, d.email AS uploaded_by_email
            FROM time_tracker_releases r
       LEFT JOIN developers d ON d.id = r.uploaded_by
        ORDER BY r.uploaded_at DESC"
@@ -56,6 +56,7 @@ while ($row = mysqli_fetch_assoc($res)) {
         'sha256'            => $row['sha256'],
         'notes'             => $row['notes'],
         'is_current'        => (bool) $row['is_current'],
+        'auto_download'     => (bool) $row['auto_download'],
         'uploaded_at'       => $row['uploaded_at'],
         'download_count'    => (int) $row['download_count'],
         'uploaded_by_email' => $row['uploaded_by_email'],

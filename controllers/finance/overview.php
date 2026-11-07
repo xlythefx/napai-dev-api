@@ -37,7 +37,7 @@ $accounts          = [];
 $totalBalanceBase  = 0.0;
 $byCurrency        = []; // currency => raw total
 
-$res = mysqli_query($conn, 'SELECT * FROM finance_accounts ORDER BY sort_order ASC, id ASC');
+$res = mysqli_query($conn, "SELECT * FROM finance_accounts WHERE status = 'active' ORDER BY sort_order ASC, id ASC");
 while ($row = mysqli_fetch_assoc($res)) {
     $balance     = (float) $row['balance'];
     $fx          = (float) $row['fx_to_base'];
@@ -85,6 +85,46 @@ if ($allocTable && mysqli_num_rows($allocTable) > 0) {
 }
 
 $spendableBalanceBase = $totalBalanceBase - $totalAllocationBase;
+
+// ---- Loaning power (borrowing capacity) ----
+// Each source has a credit limit and an already-used amount; the available credit
+// (limit - used, converted to base PHP) is summed and added to the Spendable
+// Balance to produce the Buying Power — the max cash that could be deployed if
+// every credit line were tapped. These amounts are NOT money you own.
+$loaning                  = [];
+$totalLoaningLimitBase    = 0.0;
+$totalLoaningUsedBase     = 0.0;
+$totalLoaningAvailBase    = 0.0;
+$loanTable = mysqli_query($conn, 'SHOW TABLES LIKE "finance_loaning_power"');
+if ($loanTable && mysqli_num_rows($loanTable) > 0) {
+    $res = mysqli_query($conn, 'SELECT * FROM finance_loaning_power ORDER BY sort_order ASC, limit_amount DESC, id ASC');
+    while ($row = mysqli_fetch_assoc($res)) {
+        $limit     = (float) $row['limit_amount'];
+        $used      = (float) $row['used_amount'];
+        $avail     = max(0.0, $limit - $used);
+        $fx        = (float) $row['fx_to_base'];
+        $limitBase = $limit * $fx;
+        $usedBase  = $used  * $fx;
+        $availBase = $avail * $fx;
+
+        $row['id']             = (int)   $row['id'];
+        $row['limit_amount']   = $limit;
+        $row['used_amount']    = $used;
+        $row['fx_to_base']     = $fx;
+        $row['sort_order']     = (int)   $row['sort_order'];
+        $row['limit_base']     = round($limitBase, 2);
+        $row['used_base']      = round($usedBase, 2);
+        $row['available']      = round($avail, 2);
+        $row['available_base'] = round($availBase, 2);
+        $loaning[] = $row;
+
+        $totalLoaningLimitBase += $limitBase;
+        $totalLoaningUsedBase  += $usedBase;
+        $totalLoaningAvailBase += $availBase;
+    }
+}
+
+$buyingPowerBase = $spendableBalanceBase + $totalLoaningAvailBase;
 
 // ---- Active recurring items ----
 $monthlyIncomeBase  = 0.0;
@@ -164,6 +204,11 @@ echo json_encode([
     'total_allocation_base' => round($totalAllocationBase, 2),
     'spendable_balance_base'=> round($spendableBalanceBase, 2),
     'capital_allocations'   => $allocations,
+    'loaning_power'              => $loaning,
+    'total_loaning_limit_base'   => round($totalLoaningLimitBase, 2),
+    'total_loaning_used_base'    => round($totalLoaningUsedBase, 2),
+    'total_loaning_available_base' => round($totalLoaningAvailBase, 2),
+    'buying_power_base'          => round($buyingPowerBase, 2),
     'balances_by_currency'  => $balancesByCurrency,
     'monthly_income_base'  => round($monthlyIncomeBase, 2),
     'monthly_expense_base' => round($monthlyExpenseBase, 2),

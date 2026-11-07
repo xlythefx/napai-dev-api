@@ -29,11 +29,26 @@ if (IS_DEV) {
     $db_name = 'napai_db';
 } else {
     // ---- Hostinger shared hosting (nap-ai.com) ----
-    // Replace these with the real values from hPanel → Databases.
-    $db_host = '127.0.0.1';
-    $db_user = 'u583540151_napai';
-    $db_pass = '';
-    $db_name = 'u583540151_napai';
+    // Credentials are kept OUT of git (this repo is public). Provide them via
+    // environment variables DB_HOST / DB_USER / DB_PASS / DB_NAME, or via
+    // config/db_credentials.php (gitignored; copy db_credentials.example.php
+    // and fill in the values from hPanel → Databases).
+    $db_creds = [];
+    if (file_exists(__DIR__ . '/db_credentials.php')) {
+        $loaded = include __DIR__ . '/db_credentials.php';
+        if (is_array($loaded)) {
+            $db_creds = $loaded;
+        }
+    }
+    $db_host = getenv('DB_HOST') ?: ($db_creds['host'] ?? '127.0.0.1');
+    $db_user = getenv('DB_USER') ?: ($db_creds['user'] ?? '');
+    $db_pass = getenv('DB_PASS') ?: ($db_creds['pass'] ?? '');
+    $db_name = getenv('DB_NAME') ?: ($db_creds['name'] ?? '');
+    unset($db_creds, $loaded);
+
+    if ($db_user === '' || $db_name === '') {
+        error_log('napai-api: production DB credentials missing — create config/db_credentials.php');
+    }
 }
 
 $conn = mysqli_connect($db_host, $db_user, $db_pass, $db_name);

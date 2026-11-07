@@ -4,3 +4,4 @@ config/cloudinary_key.php
 config/tablet.php
 controllers/tools/rag/config.php
 uploads/
+config/db_credentials.php

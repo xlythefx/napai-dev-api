@@ -1,7 +1,10 @@
 <?php
 /**
- * List finance accounts (bank/wallet balances).
- * GET/POST { requester_email } -> { accounts: [...] }
+ * List finance (bank) accounts, including archived ones and per-row base-currency
+ * equivalents so the Bank Accounts page is self-contained (no overview call).
+ * GET/POST { requester_email }
+ * -> { base_currency, accounts: [{ ..., balance_base, status, notes }], total_balance_base }
+ *    total_balance_base counts ACTIVE accounts only.
  */
 
 require_once __DIR__ . '/../../../config/cors.php';
@@ -18,18 +21,34 @@ $input = $_SERVER['REQUEST_METHOD'] === 'POST'
 
 require_admin($conn, $input['requester_email'] ?? '');
 
+$BASE_CURRENCY   = 'PHP';
+$totalActiveBase = 0.0;
+
 $res = mysqli_query(
     $conn,
-    'SELECT * FROM finance_accounts ORDER BY sort_order ASC, id ASC'
+    "SELECT * FROM finance_accounts ORDER BY (status = 'archived') ASC, sort_order ASC, id ASC"
 );
 
 $accounts = [];
 while ($row = mysqli_fetch_assoc($res)) {
-    $row['id']         = (int)   $row['id'];
-    $row['balance']    = (float) $row['balance'];
-    $row['fx_to_base'] = (float) $row['fx_to_base'];
-    $row['sort_order'] = (int)   $row['sort_order'];
+    $balance     = (float) $row['balance'];
+    $fx          = (float) $row['fx_to_base'];
+    $status      = $row['status'] ?? 'active';
+    $balanceBase = round($balance * $fx, 2);
+
+    $row['id']           = (int)   $row['id'];
+    $row['balance']      = $balance;
+    $row['fx_to_base']   = $fx;
+    $row['sort_order']   = (int)   $row['sort_order'];
+    $row['status']       = $status;
+    $row['balance_base'] = $balanceBase;
     $accounts[] = $row;
+
+    if ($status !== 'archived') $totalActiveBase += $balanceBase;
 }
 
-echo json_encode(['accounts' => $accounts]);
+echo json_encode([
+    'base_currency'      => $BASE_CURRENCY,
+    'accounts'           => $accounts,
+    'total_balance_base' => round($totalActiveBase, 2),
+]);
